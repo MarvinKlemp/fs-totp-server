@@ -1,0 +1,13 @@
+[package]
+name = "fs-totp-server"
+version = "0.1.0"
+authors = ["Marvin Klemp <marvin.klemp@sensiolabs.de>"]
+
+[dependencies]
+rocket = "0.3.6"
+rocket_codegen = "0.3.6"
+rocket_contrib = "0.3.6"
+
+serde_derive = "1.0.27"
+serde = "1.0.27"
+serde_json = "1.0.9"
