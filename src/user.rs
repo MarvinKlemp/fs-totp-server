@@ -31,13 +31,16 @@ impl UserMap
     }
 }
 
+use password_encoder::Hash;
+
+#[derive(Debug)]
 pub struct User {
     username: String,
-    password: String
+    password: Hash
 }
 
 impl User {
-    pub fn new(username: String, password: String) -> Self {
+    pub fn new(username: String, password: Hash) -> Self {
         User {
             username: username,
             password: password
@@ -48,7 +51,7 @@ impl User {
         self.username.clone()
     }
 
-    pub fn password(&self) -> String {
+    pub fn password(&self) -> Hash {
         self.password.clone()
     }
 }
@@ -63,7 +66,7 @@ impl UserDTO {
     pub fn from_user(user: &User) -> Self {
         UserDTO {
             username: user.username(),
-            password: user.password()
+            password: "".to_string()
         }
     }
 }

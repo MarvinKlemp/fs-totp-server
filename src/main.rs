@@ -3,8 +3,9 @@
 extern crate rocket;
 extern crate rocket_contrib;
 
-#[macro_use] extern crate serde_derive;
+extern crate ring;
 
+#[macro_use] extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
@@ -15,6 +16,9 @@ use rocket::response::status::Created;
 mod user;
 use user::{User, UserDTO, UserMap};
 
+mod password_encoder;
+use password_encoder::{PasswordEncoder, Sha256PasswordEncoder};
+
 #[get("/user/<username>", format = "application/json")]
 fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
     user_map.get(&username).map(|user: UserDTO| {
@@ -22,21 +26,23 @@ fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>>
     })
 }
 
-
 #[post("/user", format = "application/json", data = "<json>")]
 fn post_user(json: Json<UserDTO>, user_map: State<UserMap>) -> Result<Created<Json<UserDTO>>, String> {
-    let user_dto = UserDTO {
-        username: json.0.username,
-        password: json.0.password
-    };
+    let username: String = json.0.username;
+    let password: String = json.0.password;
+
+    let password_encoder = Sha256PasswordEncoder::new(1001);
+    let encoded_password = password_encoder.encode(
+        &password,
+        &username
+    );
 
     let result_dto = user_map.insert(
         User::new(
-            user_dto.username,
-            user_dto.password
+            username,
+            encoded_password
         )
     ).unwrap();
-
 
     Ok(Created(
         format!("/user/{}", result_dto.username),
