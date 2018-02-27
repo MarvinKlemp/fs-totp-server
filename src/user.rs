@@ -13,10 +13,13 @@ impl UserMap
         }
     }
 
-    pub fn insert(&self, user: User) -> () {
-        let mut map = self.map.lock().expect("Cannot write lock mutex");
+    pub fn insert(&self, user: User) -> Option<UserDTO> {
+        let dto = UserDTO::from_user(&user);
 
+        let mut map = self.map.lock().expect("Cannot write lock mutex");
         map.insert(user.username(), user);
+
+        Some(dto)
     }
 
     pub fn get(&self, username: &str) -> Option<UserDTO> {
@@ -29,32 +32,38 @@ impl UserMap
 }
 
 pub struct User {
-    name: String,
+    username: String,
     password: String
 }
 
 impl User {
-    pub fn new() -> Self {
+    pub fn new(username: String, password: String) -> Self {
         User {
-            name: "marvin".to_string(),
-            password: "password".to_string()
+            username: username,
+            password: password
         }
     }
 
     pub fn username(&self) -> String {
-        self.name.clone()
+        self.username.clone()
+    }
+
+    pub fn password(&self) -> String {
+        self.password.clone()
     }
 }
 
 #[derive(Serialize,Deserialize)]
 pub struct UserDTO {
-    pub name: String
+    pub username: String,
+    pub password: String
 }
 
 impl UserDTO {
     pub fn from_user(user: &User) -> Self {
         UserDTO {
-            name: user.username()
+            username: user.username(),
+            password: user.password()
         }
     }
 }

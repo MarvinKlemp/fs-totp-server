@@ -10,11 +10,10 @@ extern crate serde_json;
 
 use rocket::State;
 use rocket_contrib::Json;
+use rocket::response::status::Created;
 
 mod user;
-use user::UserDTO;
-use user::UserMap;
-
+use user::{User, UserDTO, UserMap};
 
 #[get("/user/<username>", format = "application/json")]
 fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
@@ -23,21 +22,37 @@ fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>>
     })
 }
 
+
+#[post("/user", format = "application/json", data = "<json>")]
+fn post_user(json: Json<UserDTO>, user_map: State<UserMap>) -> Result<Created<Json<UserDTO>>, String> {
+    let user_dto = UserDTO {
+        username: json.0.username,
+        password: json.0.password
+    };
+
+    let result_dto = user_map.insert(
+        User::new(
+            user_dto.username,
+            user_dto.password
+        )
+    ).unwrap();
+
+
+    Ok(Created(
+        format!("/user/{}", result_dto.username),
+        Some(Json(result_dto))
+    ))
+}
+
 fn main() {
-    use user::User;
-
-    let user_map = UserMap::new();
-    user_map.insert(User::new());
-
-
     rocket::ignite()
-        .mount("/", routes![get_user])
+        .mount("/", routes![get_user, post_user])
         .catch(errors![not_found])
-        .manage(user_map)
+        .manage(UserMap::new())
         .launch();
 }
 
 #[error(404)]
 fn not_found() -> &'static str {
-    "{status: \"error\", message: \"Resource not found.\"}"
+    "{\"status\": \"error\", \"message\": \"Resource not found.\"}"
 }
