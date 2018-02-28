@@ -32,28 +32,36 @@ impl UserMap
             ReadableUser::from_user(user)
         })
     }
+
+    pub fn find_with_apikey(&self, apikey: &ApiKey) -> Option<ReadableUser> {
+        let map = self.map.lock().expect("Cannot read lock mutex");
+
+        for (_, user) in map.iter() {
+            if user.apikey() == *apikey {
+                return Some(ReadableUser::from_user(&user))
+            }
+        }
+
+        None
+    }
 }
 
 use password_encoder::Hash;
 
-#[derive(Clone, Debug)]
-pub struct ApiKey {
-    apikey: String
-}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ApiKey(pub String);
 
 impl ApiKey {
     fn new() -> Self {
         let key: String = thread_rng().gen_ascii_chars().take(30).collect();
 
-        ApiKey {
-            apikey: key
-        }
+        ApiKey(key)
     }
 }
 
 impl std::string::ToString for ApiKey {
     fn to_string(&self) -> String {
-        self.apikey.clone()
+        self.0.clone()
     }
 }
 

@@ -15,16 +15,16 @@ use rocket_contrib::Json;
 use rocket::response::status::Created;
 
 mod user;
-use user::{User, ReadableUser, UserMap};
+use user::{User, ReadableUser, UserMap, ApiKey};
 
 mod api;
-use api::{UserDTO, LoginDTO};
+use api::{ReturnUser, CreateUser, UsernamePasswordLogin};
 
 mod password_encoder;
 use password_encoder::{PasswordEncoder, Sha256PasswordEncoder};
 
 #[post("/login", format = "application/json", data = "<json>")]
-fn post_login(json: Json<LoginDTO>, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
+fn post_login(json: Json<UsernamePasswordLogin>, user_map: State<UserMap>) -> Option<Json<ReturnUser>> {
     let password_encoder = Sha256PasswordEncoder::new(1001);
 
     let username: String = json.0.username;
@@ -39,22 +39,15 @@ fn post_login(json: Json<LoginDTO>, user_map: State<UserMap>) -> Option<Json<Use
 
 
         if secured {
-            return Some(Json(UserDTO::from_readable_user(&user)));
+            return Some(Json(ReturnUser::from_readable_user(&user)));
         }
     }
 
     None
 }
 
-#[get("/user/<username>", format = "application/json")]
-fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
-    user_map.get(&username).map(|user: ReadableUser| {
-        Json(UserDTO::from_readable_user(&user))
-    })
-}
-
 #[post("/user", format = "application/json", data = "<json>")]
-fn post_user(json: Json<UserDTO>, user_map: State<UserMap>) -> Result<Created<Json<UserDTO>>, String> {
+fn post_user(json: Json<CreateUser>, user_map: State<UserMap>) -> Result<Created<Json<ReturnUser>>, String> {
     let username: String = json.0.username;
     let password: String = json.0.password;
 
@@ -73,8 +66,15 @@ fn post_user(json: Json<UserDTO>, user_map: State<UserMap>) -> Result<Created<Js
 
     Ok(Created(
         format!("/user/{}", result_dto.username),
-        Some(Json(UserDTO::from_readable_user(&result_dto)))
+        Some(Json(ReturnUser::from_readable_user(&result_dto)))
     ))
+}
+
+#[get("/user", format = "application/json")]
+fn get_user(apikey: ApiKey, user_map: State<UserMap>) -> Option<Json<ReturnUser>> {
+    user_map.find_with_apikey(&apikey).map(|user: ReadableUser| {
+        Json(ReturnUser::from_readable_user(&user))
+    })
 }
 
 fn main() {
