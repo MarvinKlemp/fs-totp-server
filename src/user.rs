@@ -1,5 +1,8 @@
+use std;
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+use rand::{thread_rng, Rng};
 
 pub struct UserMap {
     map: Mutex<HashMap<String, User>>
@@ -13,37 +16,60 @@ impl UserMap
         }
     }
 
-    pub fn insert(&self, user: User) -> Option<UserDTO> {
-        let dto = UserDTO::from_user(&user);
+    pub fn insert(&self, user: User) -> Option<ReadableUser> {
+        let readable = ReadableUser::from_user(&user);
 
         let mut map = self.map.lock().expect("Cannot write lock mutex");
         map.insert(user.username(), user);
 
-        Some(dto)
+        Some(readable)
     }
 
-    pub fn get(&self, username: &str) -> Option<UserDTO> {
+    pub fn get(&self, username: &str) -> Option<ReadableUser> {
         let map = self.map.lock().expect("Cannot read lock mutex");
 
         map.get(username).map(|user: &User| {
-            UserDTO::from_user(user)
+            ReadableUser::from_user(user)
         })
     }
 }
 
 use password_encoder::Hash;
 
+#[derive(Clone, Debug)]
+pub struct ApiKey {
+    apikey: String
+}
+
+impl ApiKey {
+    fn new() -> Self {
+        let key: String = thread_rng().gen_ascii_chars().take(30).collect();
+
+        ApiKey {
+            apikey: key
+        }
+    }
+}
+
+impl std::string::ToString for ApiKey {
+    fn to_string(&self) -> String {
+        self.apikey.clone()
+    }
+}
+
 #[derive(Debug)]
 pub struct User {
     username: String,
-    password: Hash
+    password: Hash,
+    apikey: ApiKey
 }
 
 impl User {
     pub fn new(username: String, password: Hash) -> Self {
         User {
             username: username,
-            password: password
+            password: password,
+            apikey: ApiKey::new()
         }
     }
 
@@ -54,19 +80,24 @@ impl User {
     pub fn password(&self) -> Hash {
         self.password.clone()
     }
+
+    pub fn apikey(&self) -> ApiKey {
+        self.apikey.clone()
+    }
 }
 
-#[derive(Serialize,Deserialize)]
-pub struct UserDTO {
+pub struct ReadableUser {
     pub username: String,
-    pub password: String
+    pub password: Hash,
+    pub apikey: ApiKey
 }
 
-impl UserDTO {
+impl ReadableUser {
     pub fn from_user(user: &User) -> Self {
-        UserDTO {
+        ReadableUser {
             username: user.username(),
-            password: "".to_string()
+            password: user.password(),
+            apikey: user.apikey()
         }
     }
 }

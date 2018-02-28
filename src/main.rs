@@ -4,6 +4,7 @@ extern crate rocket;
 extern crate rocket_contrib;
 
 extern crate ring;
+extern crate rand;
 
 #[macro_use] extern crate serde_derive;
 extern crate serde;
@@ -14,15 +15,41 @@ use rocket_contrib::Json;
 use rocket::response::status::Created;
 
 mod user;
-use user::{User, UserDTO, UserMap};
+use user::{User, ReadableUser, UserMap};
+
+mod api;
+use api::{UserDTO, LoginDTO};
 
 mod password_encoder;
 use password_encoder::{PasswordEncoder, Sha256PasswordEncoder};
 
+#[post("/login", format = "application/json", data = "<json>")]
+fn post_login(json: Json<LoginDTO>, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
+    let password_encoder = Sha256PasswordEncoder::new(1001);
+
+    let username: String = json.0.username;
+    let password: String = json.0.password;
+
+    if let Some(user) = user_map.get(&username) {
+        let secured = password_encoder.is_password_valid(
+            &user.password,
+            &password,
+            &username
+        );
+
+
+        if secured {
+            return Some(Json(UserDTO::from_readable_user(&user)));
+        }
+    }
+
+    None
+}
+
 #[get("/user/<username>", format = "application/json")]
 fn get_user(username: String, user_map: State<UserMap>) -> Option<Json<UserDTO>> {
-    user_map.get(&username).map(|user: UserDTO| {
-        Json(user)
+    user_map.get(&username).map(|user: ReadableUser| {
+        Json(UserDTO::from_readable_user(&user))
     })
 }
 
@@ -46,13 +73,13 @@ fn post_user(json: Json<UserDTO>, user_map: State<UserMap>) -> Result<Created<Js
 
     Ok(Created(
         format!("/user/{}", result_dto.username),
-        Some(Json(result_dto))
+        Some(Json(UserDTO::from_readable_user(&result_dto)))
     ))
 }
 
 fn main() {
     rocket::ignite()
-        .mount("/", routes![get_user, post_user])
+        .mount("/", routes![post_login, get_user, post_user])
         .catch(errors![not_found])
         .manage(UserMap::new())
         .launch();
